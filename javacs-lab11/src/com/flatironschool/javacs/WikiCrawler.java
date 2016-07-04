@@ -54,8 +54,33 @@ public class WikiCrawler {
 	 * @throws IOException
 	 */
 	public String crawl(boolean testing) throws IOException {
-        // FILL THIS IN!
-		return null;
+		
+		if (queue.isEmpty())
+			return null;
+
+		// choose and remove a URL from the queue in FIFO order
+		String url = queue.poll();
+		Elements paragraphs;
+
+		if (testing) {
+
+	        // read the contents of the page using WikiFetcher.readWikipedia
+	        paragraphs = wf.readWikipedia(url);
+
+		} else {
+
+			// if the URL is already indexed, it should not index it again
+			if (index.isIndexed(url))
+				return null;
+
+			// otherwise, read the contents of the page
+			paragraphs = wf.fetchWikipedia(url);
+		}
+
+		// index page, add links to queue. and return URL of page indexed
+		index.indexPage(url, paragraphs);
+		queueInternalLinks(paragraphs);
+		return url;
 	}
 	
 	/**
@@ -65,7 +90,21 @@ public class WikiCrawler {
 	 */
 	// NOTE: absence of access level modifier means package-level
 	void queueInternalLinks(Elements paragraphs) {
-        // FILL THIS IN!
+
+        for (Element p : paragraphs) {
+
+        	Elements elements = p.select("a[href]");
+        	for (Element e : elements) {
+        		// find link
+        		String url = e.attr("href");
+        		if (url.startsWith("/wiki/")) {
+        			String fullUrl = "https://en.wikipedia.org" + url;
+        			// add full URL to queue
+        			queue.offer(fullUrl);
+        		}
+        	}
+        	
+        }
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -84,9 +123,6 @@ public class WikiCrawler {
 		String res;
 		do {
 			res = wc.crawl(false);
-
-            // REMOVE THIS BREAK STATEMENT WHEN crawl() IS WORKING
-            break;
 		} while (res == null);
 		
 		Map<String, Integer> map = index.getCounts("the");
